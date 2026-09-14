@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>讀書日程</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #F3F2EC;
+    --panel: #FBFAF6;
+    --ink: #24262B;
+    --ink-soft: #6C6F76;
+    --line: #DEDBD0;
+    --exam: #2F6F5E;
+    --exam-bg: #E3EEE9;
+    --hw: #AD7A2C;
+    --hw-bg: #F2E7D4;
+    --danger: #B4483C;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter', -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, .serif { font-family: 'Newsreader', Georgia, serif; }
+
+  /* ---------- Auth screen ---------- */
+  #auth-screen {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--bg);
+    z-index: 100;
+    padding: 24px;
+  }
+  .auth-card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 40px 36px;
+    width: 100%;
+    max-width: 360px;
+    text-align: center;
+  }
+  .auth-card h1 {
+    font-size: 26px;
+    font-weight: 600;
+    margin: 0 0 6px;
+  }
+  .auth-card p {
+    color: var(--ink-soft);
+    font-size: 14px;
+    margin: 0 0 24px;
+    line-height: 1.6;
+  }
+  .auth-card input {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 15px;
+    font-family: inherit;
+    margin-bottom: 12px;
+    background: #fff;
+  }
+  .auth-card input:focus { outline: 2px solid var(--exam); outline-offset: 1px; }
+  .auth-card button {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    background: var(--ink);
+    color: #fff;
+    font-size: 15px;
+    font-family: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 4px;
+  }
+  .auth-card button:hover { opacity: .88; }
+  .auth-error {
+    color: var(--danger);
+    font-size: 13px;
+    margin-top: 10px;
+    min-height: 18px;
+  }
+
+  /* ---------- App shell ---------- */
+  #app { display: none; max-width: 1100px; margin: 0 auto; padding: 28px 20px 60px; }
+  header.top {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 16px;
+    margin-bottom: 22px;
+  }
+  header.top h1 { font-size: 24px; font-weight: 600; margin: 0; }
+  .month-nav { display: flex; align-items: center; gap: 10px; }
+  .month-nav button {
+    width: 32px; height: 32px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 15px;
+    color: var(--ink);
+  }
+  .month-nav button:hover { background: #fff; }
+  .month-nav .month-label { font-size: 17px; font-weight: 500; min-width: 110px; text-align: center; }
+  .btn-add {
+    padding: 10px 18px;
+    background: var(--exam);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .btn-add:hover { opacity: .9; }
+
+  .filters { display: flex; gap: 8px; margin-bottom: 18px; }
+  .filter-chip {
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--ink-soft);
+    font-family: inherit;
+  }
+  .filter-chip.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+  .layout { display: flex; gap: 22px; align-items: flex-start; }
+  .cal-wrap {
+    flex: 1;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 18px;
+    min-width: 0;
+  }
+  .weekdays {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    margin-bottom: 6px;
+  }
+  .weekdays span {
+    text-align: center;
+    font-size: 12px;
+    color: var(--ink-soft);
+    font-weight: 600;
+    padding: 6px 0;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    grid-auto-rows: minmax(84px, auto);
+    gap: 4px;
+  }
+  .cell {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 6px;
+    background: #fff;
+    cursor: pointer;
+    display: flex; flex-direction: column; gap: 3px;
+    min-width: 0;
+  }
+  .cell:hover { border-color: var(--exam); }
+  .cell.empty { background: transparent; border-color: transparent; cursor: default; }
+  .cell.today { border-color: var(--exam); box-shadow: inset 0 0 0 1px var(--exam); }
+  .cell .num { font-size: 12px; color: var(--ink-soft); font-weight: 600; }
+  .cell.today .num { color: var(--exam); }
+  .chip {
+    font-size: 10.5px;
+    padding: 2px 5px;
+    border-radius: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .chip.hw { background: var(--hw-bg); color: var(--hw); }
+  .chip.exam { background: var(--exam-bg); color: var(--exam); }
+  .chip.more { color: var(--ink-soft); background: none; padding-left: 2px; }
+
+  .sidebar {
+    width: 300px;
+    flex-shrink: 0;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 18px;
+  }
+  .sidebar h2 { font-size: 16px; font-weight: 600; margin: 0 0 14px; }
+  .up-item {
+    display: flex; gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+    cursor: pointer;
+  }
+  .up-item:last-child { border-bottom: none; }
+  .up-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+  .up-dot.hw { background: var(--hw); }
+  .up-dot.exam { background: var(--exam); }
+  .up-info { min-width: 0; }
+  .up-title { font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .up-meta { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+  .empty-state { color: var(--ink-soft); font-size: 13px; padding: 10px 0; line-height: 1.7; }
+
+  /* ---------- Modal ---------- */
+  .overlay {
+    position: fixed; inset: 0;
+    background: rgba(36,38,43,0.4);
+    display: none;
+    align-items: center; justify-content: center;
+    z-index: 50;
+    padding: 20px;
+  }
+  .overlay.show { display: flex; }
+  .modal {
+    background: #fff;
+    border-radius: var(--radius);
+    width: 100%; max-width: 420px;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 26px;
+  }
+  .modal h3 { margin: 0 0 18px; font-size: 19px; font-weight: 600; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 12.5px; color: var(--ink-soft); margin-bottom: 5px; font-weight: 600; }
+  .field input, .field select, .field textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    font-family: inherit;
+    font-size: 14px;
+    background: #fff;
+    color: var(--ink);
+  }
+  .field textarea { resize: vertical; min-height: 56px; }
+  .field input[type="checkbox"] { width: auto; accent-color: var(--exam); }
+  .type-toggle { display: flex; gap: 8px; }
+  .type-toggle button {
+    flex: 1; padding: 9px;
+    border: 1px solid var(--line);
+    background: #fff;
+    border-radius: 7px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--ink-soft);
+  }
+  .type-toggle button.active.hw { background: var(--hw-bg); color: var(--hw); border-color: var(--hw); }
+  .type-toggle button.active.exam { background: var(--exam-bg); color: var(--exam); border-color: var(--exam); }
+  .modal-actions { display: flex; gap: 8px; margin-top: 20px; }
+  .modal-actions button {
+    flex: 1; padding: 11px;
+    border: none; border-radius: 7px;
+    font-family: inherit; font-weight: 600; font-size: 14px;
+    cursor: pointer;
+  }
+  .btn-save { background: var(--ink); color: #fff; }
+  .btn-cancel { background: #EFEDE6; color: var(--ink); }
+  .btn-delete { background: none; color: var(--danger); border: 1px solid var(--danger) !important; }
+
+  /* ---------- Day detail ---------- */
+  .day-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 4px; }
+  .day-item {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px;
+    cursor: pointer;
+  }
+  .day-item:hover { border-color: var(--ink-soft); }
+  .day-item .tag {
+    display: inline-block;
+    font-size: 11px; font-weight: 600;
+    padding: 2px 8px; border-radius: 5px;
+    margin-bottom: 6px;
+  }
+  .tag.hw { background: var(--hw-bg); color: var(--hw); }
+  .tag.exam { background: var(--exam-bg); color: var(--exam); }
+  .day-item .subj { font-weight: 600; font-size: 14px; }
+  .day-item .ttl { font-size: 13.5px; color: var(--ink-soft); margin-top: 2px; }
+  .day-item .scope { font-size: 12.5px; color: var(--ink-soft); margin-top: 4px; }
+
+  @media (max-width: 720px) {
+    .layout { flex-direction: column; }
+    .sidebar { width: 100%; }
+    .grid { grid-auto-rows: minmax(60px, auto); }
+    .chip { display: none; }
+    .cell.has-item::after {
+      content: '';
+      width: 5px; height: 5px; border-radius: 50%;
+      background: var(--exam);
+      margin-top: auto;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div id="auth-screen">
+  <div class="auth-card" id="auth-card">
+    <h1>讀書日程</h1>
+    <p id="auth-sub">載入中…</p>
+    <div id="auth-body"></div>
+  </div>
+</div>
+
+<div id="app">
+  <header class="top">
+    <h1>讀書日程</h1>
+    <div class="month-nav">
+      <button id="prev-month" aria-label="上個月">‹</button>
+      <span class="month-label serif" id="month-label"></span>
+      <button id="next-month" aria-label="下個月">›</button>
+    </div>
+    <button class="btn-add" id="open-add">+ 新增項目</button>
+  </header>
+
+  <div class="filters">
+    <button class="filter-chip active" data-filter="all">全部</button>
+    <button class="filter-chip" data-filter="hw">作業</button>
+    <button class="filter-chip" data-filter="exam">考試</button>
+  </div>
+
+  <div class="layout">
+    <div class="cal-wrap">
+      <div class="weekdays">
+        <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+      </div>
+      <div class="grid" id="grid"></div>
+    </div>
+    <div class="sidebar">
+      <h2>即將到來</h2>
+      <div id="upcoming"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit modal -->
+<div class="overlay" id="edit-overlay">
+  <div class="modal">
+    <h3 id="edit-title">新增項目</h3>
+    <div class="type-toggle field">
+      <button type="button" class="active hw" data-type="hw" id="type-hw">作業</button>
+      <button type="button" class="exam" data-type="exam" id="type-exam">考試</button>
+    </div>
+    <div class="field">
+      <label>科目</label>
+      <input type="text" id="f-subject" placeholder="例如：微積分">
+    </div>
+    <div class="field">
+      <label id="f-title-label">標題</label>
+      <input type="text" id="f-title" placeholder="例如：第三次作業 / 期中考">
+    </div>
+    <div class="field">
+      <label id="f-date-label">繳交日期</label>
+      <input type="date" id="f-date">
+    </div>
+    <div class="field" id="f-time-wrap" style="display:none;">
+      <label>考試時間</label>
+      <input type="time" id="f-time">
+    </div>
+    <div class="field" id="f-scope-wrap">
+      <label>範圍</label>
+      <textarea id="f-scope" placeholder="例如：第 1-3 章、習題 5-10"></textarea>
+    </div>
+    <div class="field" id="f-repeat-wrap">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0;">
+        <input type="checkbox" id="f-repeat">
+        重複此項目
+      </label>
+      <div id="f-repeat-detail" style="display:none; margin-top:12px;">
+        <div class="field">
+          <label>重複頻率</label>
+          <select id="f-repeat-freq">
+            <option value="weekly">每週</option>
+            <option value="biweekly">每兩週</option>
+            <option value="monthly">每月</option>
+          </select>
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label>重複到（結束日期）</label>
+          <input type="date" id="f-repeat-until">
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <label>備註（選填）</label>
+      <textarea id="f-notes" placeholder="其他提醒事項"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="cancel-edit">取消</button>
+      <button class="btn-save" id="save-item">儲存</button>
+    </div>
+    <div class="modal-actions" id="delete-row" style="display:none;">
+      <button class="btn-delete" id="delete-item" style="width:100%;">刪除此項目</button>
+    </div>
+  </div>
+</div>
+
+<!-- Day detail modal -->
+<div class="overlay" id="day-overlay">
+  <div class="modal">
+    <h3 id="day-title">日期</h3>
+    <div class="day-list" id="day-list"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="close-day" style="width:100%;">關閉</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  let items = [];
+  let currentFilter = 'all';
+  let viewYear, viewMonth; // month: 0-11
+  let editingId = null;
+  let editingDate = null; // preset date when adding from a day cell
+
+  const today = new Date();
+  viewYear = today.getFullYear();
+  viewMonth = today.getMonth();
+
+  const grid = document.getElementById('grid');
+  const monthLabel = document.getElementById('month-label');
+  const upcomingEl = document.getElementById('upcoming');
+
+  // ---------------- Auth ----------------
+  const SITE_PASSWORD = '115304'; // 如需更改密碼，請直接修改這裡
+  const authScreen = document.getElementById('auth-screen');
+  const authSub = document.getElementById('auth-sub');
+  const authBody = document.getElementById('auth-body');
+
+  function initAuth(){
+    authSub.textContent = '請輸入密碼以進入讀書日程。';
+    authBody.innerHTML =
+      '<input type="password" id="enter-pw" placeholder="密碼">' +
+      '<button id="enter-pw-btn">進入</button>' +
+      '<div class="auth-error" id="auth-err"></div>';
+    const tryEnter = () => {
+      const val = document.getElementById('enter-pw').value;
+      const err = document.getElementById('auth-err');
+      if (val === SITE_PASSWORD) { unlockApp(); }
+      else { err.textContent = '密碼錯誤，請再試一次'; }
+    };
+    document.getElementById('enter-pw-btn').addEventListener('click', tryEnter);
+    document.getElementById('enter-pw').addEventListener('keydown', (e) => { if (e.key === 'Enter') tryEnter(); });
+  }
+
+  async function unlockApp(){
+    authScreen.style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    await loadItems();
+    render();
+  }
+
+  // ---------------- Data ----------------
+  const API_URL = 'https://script.google.com/macros/s/AKfycbzjLycW7DmsdUxnM5yjV4e-BYA-b2C2QpatldkdRjiGV7g7t971jzM_Ic7aFrcfkdZq9Q/exec';
+
+  async function loadItems(){
+    try {
+      const res = await fetch(API_URL, { method: 'GET' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      items = await res.json();
+      hideSyncBanner();
+    } catch(e) {
+      items = [];
+      showSyncBanner('讀取失敗（' + e + '），請確認 Google 試算表 API 是否正常運作');
+    }
+  }
+  async function saveItems(){
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ items: items })
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      if (!data.ok) throw new Error('伺服器回應失敗');
+      hideSyncBanner();
+      return true;
+    } catch(e) {
+      showSyncBanner('儲存失敗（' + e + '），資料可能沒有成功寫入');
+      return false;
+    }
+  }
+  function showSyncBanner(msg){
+    let el = document.getElementById('sync-banner');
+    if (!el){
+      el = document.createElement('div');
+      el.id = 'sync-banner';
+      el.style.cssText = 'position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#B4483C;color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;z-index:200;max-width:90vw;text-align:center;';
+      document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+  function hideSyncBanner(){
+    const el = document.getElementById('sync-banner');
+    if (el) el.style.display = 'none';
+  }
+  function uid(){ return 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2,8); }
+
+  function fmtDate(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  function isSameDay(a,b){ return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate(); }
+  function parseDate(s){ const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); }
+
+  function filteredItems(){
+    if (currentFilter === 'all') return items;
+    return items.filter(i => i.type === currentFilter);
+  }
+
+  // ---------------- Calendar render ----------------
+  function render(){
+    monthLabel.textContent = viewYear + ' 年 ' + (viewMonth+1) + ' 月';
+    renderGrid();
+    renderUpcoming();
+  }
+
+  function renderGrid(){
+    grid.innerHTML = '';
+    const firstDay = new Date(viewYear, viewMonth, 1);
+    const startWeekday = firstDay.getDay();
+    const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
+    const list = filteredItems();
+
+    for (let i=0; i<startWeekday; i++){
+      const empty = document.createElement('div');
+      empty.className = 'cell empty';
+      grid.appendChild(empty);
+    }
+
+    for (let day=1; day<=daysInMonth; day++){
+      const cellDate = new Date(viewYear, viewMonth, day);
+      const dayItems = list.filter(it => it.date && isSameDay(parseDate(it.date), cellDate))
+                            .sort((a,b) => (a.time||'').localeCompare(b.time||''));
+      const cell = document.createElement('div');
+      cell.className = 'cell' + (isSameDay(cellDate, today) ? ' today' : '') + (dayItems.length ? ' has-item' : '');
+      const num = document.createElement('div');
+      num.className = 'num';
+      num.textContent = day;
+      cell.appendChild(num);
+
+      const maxShow = 3;
+      dayItems.slice(0, maxShow).forEach(it => {
+        const chip = document.createElement('div');
+        chip.className = 'chip ' + it.type;
+        chip.textContent = (it.subject || '') + (it.title ? ' · ' + it.title : '');
+        cell.appendChild(chip);
+      });
+      if (dayItems.length > maxShow){
+        const more = document.createElement('div');
+        more.className = 'chip more';
+        more.textContent = '+' + (dayItems.length - maxShow) + ' 項';
+        cell.appendChild(more);
+      }
+
+      cell.addEventListener('click', () => openDayDetail(cellDate, dayItems));
+      grid.appendChild(cell);
+    }
+  }
+
+  function renderUpcoming(){
+    const list = filteredItems()
+      .filter(it => it.date && parseDate(it.date) >= new Date(today.getFullYear(), today.getMonth(), today.getDate()))
+      .sort((a,b) => a.date.localeCompare(b.date) || (a.time||'').localeCompare(b.time||''))
+      .slice(0, 12);
+
+    if (list.length === 0){
+      upcomingEl.innerHTML = '<div class="empty-state">尚無安排，點擊右上角「+ 新增項目」開始規劃讀書進度。</div>';
+      return;
+    }
+
+    upcomingEl.innerHTML = '';
+    list.forEach(it => {
+      const d = parseDate(it.date);
+      const diffDays = Math.round((d - new Date(today.getFullYear(), today.getMonth(), today.getDate())) / 86400000);
+      const when = diffDays === 0 ? '今天' : diffDays === 1 ? '明天' : diffDays + ' 天後';
+      const row = document.createElement('div');
+      row.className = 'up-item';
+      row.innerHTML =
+        '<div class="up-dot ' + it.type + '"></div>' +
+        '<div class="up-info">' +
+          '<div class="up-title">' + escapeHtml(it.subject || '未命名科目') + (it.title ? ' · ' + escapeHtml(it.title) : '') + '</div>' +
+          '<div class="up-meta">' + it.date + (it.time ? ' ' + it.time : '') + '　·　' + when + '</div>' +
+        '</div>';
+      row.addEventListener('click', () => openEditModal(it));
+      upcomingEl.appendChild(row);
+    });
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // ---------------- Day detail modal ----------------
+  const dayOverlay = document.getElementById('day-overlay');
+  const dayTitle = document.getElementById('day-title');
+  const dayList = document.getElementById('day-list');
+
+  function openDayDetail(date, dayItems){
+    dayTitle.textContent = (date.getMonth()+1) + ' 月 ' + date.getDate() + ' 日';
+    if (dayItems.length === 0){
+      dayList.innerHTML = '<div class="empty-state">這天還沒有安排。</div>';
+    } else {
+      dayList.innerHTML = '';
+      dayItems.forEach(it => {
+        const row = document.createElement('div');
+        row.className = 'day-item';
+        row.innerHTML =
+          '<span class="tag ' + it.type + '">' + (it.type === 'hw' ? '作業' : '考試') + '</span>' +
+          '<div class="subj">' + escapeHtml(it.subject || '未命名科目') + '</div>' +
+          (it.title ? '<div class="ttl">' + escapeHtml(it.title) + '</div>' : '') +
+          (it.time ? '<div class="ttl">時間：' + it.time + '</div>' : '') +
+          (it.scope ? '<div class="scope">範圍：' + escapeHtml(it.scope) + '</div>' : '');
+        row.addEventListener('click', () => { dayOverlay.classList.remove('show'); openEditModal(it); });
+        dayList.appendChild(row);
+      });
+    }
+    dayOverlay.classList.add('show');
+  }
+  document.getElementById('close-day').addEventListener('click', () => dayOverlay.classList.remove('show'));
+
+  // ---------------- Edit / Add modal ----------------
+  const editOverlay = document.getElementById('edit-overlay');
+  const editTitle = document.getElementById('edit-title');
+  const fSubject = document.getElementById('f-subject');
+  const fTitle = document.getElementById('f-title');
+  const fTitleLabel = document.getElementById('f-title-label');
+  const fDate = document.getElementById('f-date');
+  const fDateLabel = document.getElementById('f-date-label');
+  const fTimeWrap = document.getElementById('f-time-wrap');
+  const fTime = document.getElementById('f-time');
+  const fScope = document.getElementById('f-scope');
+  const fScopeWrap = document.getElementById('f-scope-wrap');
+  const fNotes = document.getElementById('f-notes');
+  const typeHwBtn = document.getElementById('type-hw');
+  const typeExamBtn = document.getElementById('type-exam');
+  const deleteRow = document.getElementById('delete-row');
+  const fRepeatWrap = document.getElementById('f-repeat-wrap');
+  const fRepeat = document.getElementById('f-repeat');
+  const fRepeatDetail = document.getElementById('f-repeat-detail');
+  const fRepeatFreq = document.getElementById('f-repeat-freq');
+  const fRepeatUntil = document.getElementById('f-repeat-until');
+  let currentType = 'hw';
+
+  fRepeat.addEventListener('change', () => {
+    fRepeatDetail.style.display = fRepeat.checked ? 'block' : 'none';
+  });
+
+  function setType(t){
+    currentType = t;
+    typeHwBtn.classList.toggle('active', t === 'hw');
+    typeExamBtn.classList.toggle('active', t === 'exam');
+    if (t === 'hw'){
+      fTitleLabel.textContent = '標題';
+      fDateLabel.textContent = '繳交日期';
+      fTimeWrap.style.display = 'none';
+      fScopeWrap.style.display = 'block';
+    } else {
+      fTitleLabel.textContent = '標題';
+      fDateLabel.textContent = '考試日期';
+      fTimeWrap.style.display = 'block';
+      fScopeWrap.style.display = 'none';
+    }
+  }
+
+  function generateSeriesDates(startDateStr, freq, untilStr){
+    const dates = [];
+    let cur = parseDate(startDateStr);
+    const until = parseDate(untilStr);
+    let guard = 0;
+    while (cur <= until && guard < 104){
+      dates.push(fmtDate(cur));
+      guard++;
+      if (freq === 'monthly'){
+        cur = new Date(cur.getFullYear(), cur.getMonth()+1, cur.getDate());
+      } else {
+        const step = freq === 'biweekly' ? 14 : 7;
+        cur = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate()+step);
+      }
+    }
+    return dates;
+  }
+  typeHwBtn.addEventListener('click', () => setType('hw'));
+  typeExamBtn.addEventListener('click', () => setType('exam'));
+
+  function openAddModal(presetDate){
+    editingId = null;
+    editingDate = presetDate || null;
+    editTitle.textContent = '新增項目';
+    setType('hw');
+    fSubject.value = ''; fTitle.value = '';
+    fDate.value = presetDate ? fmtDate(presetDate) : '';
+    fTime.value = ''; fScope.value = ''; fNotes.value = '';
+    fRepeat.checked = false;
+    fRepeatDetail.style.display = 'none';
+    fRepeatFreq.value = 'weekly';
+    fRepeatUntil.value = '';
+    fRepeatWrap.style.display = 'block';
+    deleteRow.style.display = 'none';
+    editOverlay.classList.add('show');
+    fSubject.focus();
+  }
+
+  function openEditModal(item){
+    editingId = item.id;
+    editTitle.textContent = '編輯項目';
+    setType(item.type);
+    fSubject.value = item.subject || '';
+    fTitle.value = item.title || '';
+    fDate.value = item.date || '';
+    fTime.value = item.time || '';
+    fScope.value = item.scope || '';
+    fNotes.value = item.notes || '';
+    fRepeatWrap.style.display = 'none';
+    deleteRow.style.display = 'flex';
+    editOverlay.classList.add('show');
+  }
+
+  document.getElementById('open-add').addEventListener('click', () => openAddModal());
+  document.getElementById('cancel-edit').addEventListener('click', () => editOverlay.classList.remove('show'));
+
+  document.getElementById('save-item').addEventListener('click', async () => {
+    if (!fSubject.value.trim()){ alert('請輸入科目'); return; }
+    if (!fDate.value){ alert('請選擇日期'); return; }
+    const baseData = {
+      type: currentType,
+      subject: fSubject.value.trim(),
+      title: fTitle.value.trim(),
+      time: currentType === 'exam' ? fTime.value : '',
+      scope: currentType === 'hw' ? fScope.value.trim() : '',
+      notes: fNotes.value.trim()
+    };
+
+    if (editingId){
+      const idx = items.findIndex(i => i.id === editingId);
+      if (idx > -1) items[idx] = Object.assign({id: editingId, date: fDate.value}, baseData);
+    } else if (fRepeat.checked){
+      if (!fRepeatUntil.value){ alert('請選擇重複結束日期'); return; }
+      if (fRepeatUntil.value < fDate.value){ alert('重複結束日期需晚於開始日期'); return; }
+      const dates = generateSeriesDates(fDate.value, fRepeatFreq.value, fRepeatUntil.value);
+      dates.forEach(d => {
+        items.push(Object.assign({id: uid(), date: d}, baseData));
+      });
+    } else {
+      items.push(Object.assign({id: uid(), date: fDate.value}, baseData));
+    }
+    await saveItems();
+    editOverlay.classList.remove('show');
+    render();
+  });
+
+  document.getElementById('delete-item').addEventListener('click', async () => {
+    if (!editingId) return;
+    if (!confirm('確定要刪除此項目嗎？')) return;
+    items = items.filter(i => i.id !== editingId);
+    await saveItems();
+    editOverlay.classList.remove('show');
+    render();
+  });
+
+  // ---------------- Nav & filters ----------------
+  document.getElementById('prev-month').addEventListener('click', () => {
+    viewMonth--; if (viewMonth < 0){ viewMonth = 11; viewYear--; }
+    render();
+  });
+  document.getElementById('next-month').addEventListener('click', () => {
+    viewMonth++; if (viewMonth > 11){ viewMonth = 0; viewYear++; }
+    render();
+  });
+  document.querySelectorAll('.filter-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentFilter = btn.dataset.filter;
+      render();
+    });
+  });
+
+  initAuth();
+})();
+</script>
+</body>
+</html>
