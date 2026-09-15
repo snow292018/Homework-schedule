@@ -731,7 +731,8 @@
   document.getElementById('open-add').addEventListener('click', () => openAddModal());
   document.getElementById('cancel-edit').addEventListener('click', () => editOverlay.classList.remove('show'));
 
-  document.getElementById('save-item').addEventListener('click', async () => {
+  const saveBtn = document.getElementById('save-item');
+  saveBtn.addEventListener('click', async () => {
     if (!fSubject.value.trim()){ alert('請輸入科目'); return; }
     if (!fDate.value){ alert('請選擇日期'); return; }
     const baseData = {
@@ -756,7 +757,13 @@
     } else {
       items.push(Object.assign({id: uid(), date: fDate.value}, baseData));
     }
+
+    saveBtn.disabled = true;
+    const originalLabel = saveBtn.textContent;
+    saveBtn.textContent = '儲存中…（Google 試算表反應較慢，請耐心等候）';
     await saveItems();
+    saveBtn.disabled = false;
+    saveBtn.textContent = originalLabel;
     editOverlay.classList.remove('show');
     render();
   });
@@ -765,7 +772,13 @@
     if (!editingId) return;
     if (!confirm('確定要刪除此項目嗎？')) return;
     items = items.filter(i => i.id !== editingId);
+    const delBtn = document.getElementById('delete-item');
+    delBtn.disabled = true;
+    const originalLabel = delBtn.textContent;
+    delBtn.textContent = '刪除中…（請耐心等候）';
     await saveItems();
+    delBtn.disabled = false;
+    delBtn.textContent = originalLabel;
     editOverlay.classList.remove('show');
     render();
   });
