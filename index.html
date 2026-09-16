@@ -469,7 +469,7 @@
 
   async function loadItems(){
     try {
-      const res = await fetch(API_URL, { method: 'GET' });
+      const res = await fetch(API_URL + '?t=' + Date.now(), { method: 'GET', cache: 'no-store' });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       items = await res.json();
       hideSyncBanner();
