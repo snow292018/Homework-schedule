@@ -442,19 +442,8 @@
   const authBody = document.getElementById('auth-body');
 
   function initAuth(){
-    authSub.textContent = '請輸入密碼以進入讀書日程。';
-    authBody.innerHTML =
-      '<input type="password" id="enter-pw" placeholder="密碼">' +
-      '<button id="enter-pw-btn">進入</button>' +
-      '<div class="auth-error" id="auth-err"></div>';
-    const tryEnter = () => {
-      const val = document.getElementById('enter-pw').value;
-      const err = document.getElementById('auth-err');
-      if (val === SITE_PASSWORD) { unlockApp(); }
-      else { err.textContent = '密碼錯誤，請再試一次'; }
-    };
-    document.getElementById('enter-pw-btn').addEventListener('click', tryEnter);
-    document.getElementById('enter-pw').addEventListener('keydown', (e) => { if (e.key === 'Enter') tryEnter(); });
+    // 已取消密碼：開啟網站後直接進入
+    unlockApp();
   }
 
   async function unlockApp(){
