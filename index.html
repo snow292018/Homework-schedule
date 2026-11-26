@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>讀書日程</title>
+<title>愛班記事本📖</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -17,6 +17,8 @@
     --exam-bg: #E3EEE9;
     --hw: #AD7A2C;
     --hw-bg: #F2E7D4;
+    --act: #4F5FA8;
+    --act-bg: #E6E9F5;
     --danger: #B4483C;
     --radius: 10px;
   }
@@ -186,6 +188,7 @@
   }
   .chip.hw { background: var(--hw-bg); color: var(--hw); }
   .chip.exam { background: var(--exam-bg); color: var(--exam); }
+  .chip.activity { background: var(--act-bg); color: var(--act); }
   .chip.more { color: var(--ink-soft); background: none; padding-left: 2px; }
 
   .sidebar {
@@ -207,6 +210,7 @@
   .up-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
   .up-dot.hw { background: var(--hw); }
   .up-dot.exam { background: var(--exam); }
+  .up-dot.activity { background: var(--act); }
   .up-info { min-width: 0; }
   .up-title { font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .up-meta { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
@@ -259,6 +263,7 @@
   }
   .type-toggle button.active.hw { background: var(--hw-bg); color: var(--hw); border-color: var(--hw); }
   .type-toggle button.active.exam { background: var(--exam-bg); color: var(--exam); border-color: var(--exam); }
+  .type-toggle button.active.activity { background: var(--act-bg); color: var(--act); border-color: var(--act); }
   .modal-actions { display: flex; gap: 8px; margin-top: 20px; }
   .modal-actions button {
     flex: 1; padding: 11px;
@@ -287,6 +292,12 @@
   }
   .tag.hw { background: var(--hw-bg); color: var(--hw); }
   .tag.exam { background: var(--exam-bg); color: var(--exam); }
+  .tag.activity { background: var(--act-bg); color: var(--act); }
+  .side-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+  .side-tab { flex: 1; padding: 7px 0; border: 1px solid var(--line); background: #fff; border-radius: 8px; font-family: inherit; font-size: 13px; font-weight: 600; color: var(--ink-soft); cursor: pointer; }
+  .side-tab.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+  #upcoming { max-height: 560px; overflow-y: auto; }
+  .up-item.past { opacity: .75; }
   .day-item .subj { font-weight: 600; font-size: 14px; }
   .day-item .ttl { font-size: 13.5px; color: var(--ink-soft); margin-top: 2px; }
   .day-item .scope { font-size: 12.5px; color: var(--ink-soft); margin-top: 4px; }
@@ -330,6 +341,7 @@
     <button class="filter-chip active" data-filter="all">全部</button>
     <button class="filter-chip" data-filter="hw">作業</button>
     <button class="filter-chip" data-filter="exam">考試</button>
+    <button class="filter-chip" data-filter="activity">班級活動</button>
   </div>
 
   <div class="layout">
@@ -340,7 +352,10 @@
       <div class="grid" id="grid"></div>
     </div>
     <div class="sidebar">
-      <h2>即將到來</h2>
+      <div class="side-tabs">
+        <button class="side-tab active" data-tab="upcoming">即將到來</button>
+        <button class="side-tab" data-tab="past">過去紀錄</button>
+      </div>
       <div id="upcoming"></div>
     </div>
   </div>
@@ -353,10 +368,11 @@
     <div class="type-toggle field">
       <button type="button" class="active hw" data-type="hw" id="type-hw">作業</button>
       <button type="button" class="exam" data-type="exam" id="type-exam">考試</button>
+      <button type="button" class="activity" data-type="activity" id="type-activity">班級活動</button>
     </div>
     <div class="field">
-      <label>科目</label>
-      <input type="text" id="f-subject" placeholder="例如：微積分">
+      <label>科目／活動名稱</label>
+      <input type="text" id="f-subject" placeholder="例如：微積分 / 運動會">
     </div>
     <div class="field">
       <label id="f-title-label">標題</label>
@@ -367,11 +383,11 @@
       <input type="date" id="f-date">
     </div>
     <div class="field" id="f-time-wrap" style="display:none;">
-      <label>考試時間</label>
+      <label id="f-time-label">考試時間</label>
       <input type="time" id="f-time">
     </div>
     <div class="field" id="f-scope-wrap">
-      <label>範圍</label>
+      <label id="f-scope-label">範圍</label>
       <textarea id="f-scope" placeholder="例如：第 1-3 章、習題 5-10"></textarea>
     </div>
     <div class="field" id="f-repeat-wrap">
@@ -456,6 +472,8 @@
   // ---------------- Data ----------------
   const API_URL = 'https://script.google.com/macros/s/AKfycbwvCpi4-Hj-1YCs9BH7qfZnZvHQKLuzRLJcFcidxDKZtcbNuQsmWJsYht8L6-gb0YAGcA/exec';
 
+  let loadOk = false; // 只有成功讀到雲端資料後才允許儲存，避免用空資料覆蓋試算表
+
   function loadItems(){
     return new Promise((resolve) => {
       const cbName = 'jsonpCb_' + Date.now() + '_' + Math.floor(Math.random()*10000);
@@ -466,41 +484,45 @@
         delete window[cbName];
         if (script.parentNode) script.parentNode.removeChild(script);
       }
-
-      const timeoutId = setTimeout(() => {
+      function fail(msg){
         if (done) return;
         done = true;
-        items = [];
-        showSyncBanner('讀取逾時，請確認網路連線或 API 是否正常運作');
+        clearTimeout(timeoutId);
+        // 讀取失敗時保留畫面上原有資料，不清空
+        showSyncBanner(msg);
         cleanup();
-        resolve();
-      }, 12000);
+        resolve(false);
+      }
+
+      const timeoutId = setTimeout(() => fail('讀取雲端資料逾時，為避免覆蓋資料，目前無法儲存。請稍後重新整理頁面'), 40000);
 
       window[cbName] = function(data){
         if (done) return;
         done = true;
         clearTimeout(timeoutId);
-        items = Array.isArray(data) ? data : [];
-        hideSyncBanner();
+        if (Array.isArray(data)) {
+          items = data;
+          loadOk = true;
+          hideSyncBanner();
+        } else {
+          showSyncBanner('讀取到的資料格式不正確，目前無法儲存');
+        }
         cleanup();
-        resolve();
+        resolve(Array.isArray(data));
       };
 
-      script.onerror = function(){
-        if (done) return;
-        done = true;
-        clearTimeout(timeoutId);
-        items = [];
-        showSyncBanner('讀取失敗，請確認 Google 試算表 API 是否正常運作');
-        cleanup();
-        resolve();
-      };
+      script.onerror = function(){ fail('讀取失敗，為避免覆蓋資料，目前無法儲存。請重新整理頁面'); };
 
       script.src = API_URL + '?callback=' + cbName + '&t=' + Date.now();
       document.body.appendChild(script);
     });
   }
+
   async function saveItems(){
+    if (!loadOk) {
+      showSyncBanner('尚未成功讀取雲端資料，已停止儲存以免覆蓋舊資料。請重新整理頁面');
+      return false;
+    }
     try {
       await fetch(API_URL, {
         method: 'POST',
@@ -516,6 +538,7 @@
       return false;
     }
   }
+
   function showSyncBanner(msg){
     let el = document.getElementById('sync-banner');
     if (!el){
@@ -592,34 +615,55 @@
     }
   }
 
+  const TYPE_LABEL = { hw: '作業', exam: '考試', activity: '班級活動' };
+  let sideTab = 'upcoming';
+
   function renderUpcoming(){
-    const list = filteredItems()
-      .filter(it => it.date && parseDate(it.date) >= new Date(today.getFullYear(), today.getMonth(), today.getDate()))
-      .sort((a,b) => a.date.localeCompare(b.date) || (a.time||'').localeCompare(b.time||''))
-      .slice(0, 12);
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const isPast = sideTab === 'past';
+    let list = filteredItems().filter(it => it.date && (isPast ? parseDate(it.date) < todayStart : parseDate(it.date) >= todayStart));
+
+    if (isPast){
+      list.sort((a,b) => b.date.localeCompare(a.date) || (b.time||'').localeCompare(a.time||''));
+    } else {
+      list.sort((a,b) => a.date.localeCompare(b.date) || (a.time||'').localeCompare(b.time||''));
+      list = list.slice(0, 12);
+    }
 
     if (list.length === 0){
-      upcomingEl.innerHTML = '<div class="empty-state">尚無安排，點擊右上角「+ 新增項目」開始規劃讀書進度。</div>';
+      upcomingEl.innerHTML = isPast
+        ? '<div class="empty-state">還沒有過去的紀錄。日期過後的項目會自動收進這裡，不會被刪除。</div>'
+        : '<div class="empty-state">尚無安排，點擊右上角「+ 新增項目」開始規劃。</div>';
       return;
     }
 
     upcomingEl.innerHTML = '';
     list.forEach(it => {
       const d = parseDate(it.date);
-      const diffDays = Math.round((d - new Date(today.getFullYear(), today.getMonth(), today.getDate())) / 86400000);
-      const when = diffDays === 0 ? '今天' : diffDays === 1 ? '明天' : diffDays + ' 天後';
+      const diffDays = Math.round((d - todayStart) / 86400000);
+      const when = isPast ? Math.abs(diffDays) + ' 天前'
+        : (diffDays === 0 ? '今天' : diffDays === 1 ? '明天' : diffDays + ' 天後');
       const row = document.createElement('div');
-      row.className = 'up-item';
+      row.className = 'up-item' + (isPast ? ' past' : '');
       row.innerHTML =
         '<div class="up-dot ' + it.type + '"></div>' +
         '<div class="up-info">' +
-          '<div class="up-title">' + escapeHtml(it.subject || '未命名科目') + (it.title ? ' · ' + escapeHtml(it.title) : '') + '</div>' +
-          '<div class="up-meta">' + it.date + (it.time ? ' ' + it.time : '') + '　·　' + when + '</div>' +
+          '<div class="up-title">' + escapeHtml(it.subject || '未命名') + (it.title ? ' · ' + escapeHtml(it.title) : '') + '</div>' +
+          '<div class="up-meta">' + (TYPE_LABEL[it.type] || '') + '　' + it.date + (it.time ? ' ' + it.time : '') + '　·　' + when + '</div>' +
         '</div>';
       row.addEventListener('click', () => openEditModal(it));
       upcomingEl.appendChild(row);
     });
   }
+
+  document.querySelectorAll('.side-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.side-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      sideTab = btn.dataset.tab;
+      renderUpcoming();
+    });
+  });
 
   function escapeHtml(s){
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -640,11 +684,12 @@
         const row = document.createElement('div');
         row.className = 'day-item';
         row.innerHTML =
-          '<span class="tag ' + it.type + '">' + (it.type === 'hw' ? '作業' : '考試') + '</span>' +
+          '<span class="tag ' + it.type + '">' + (TYPE_LABEL[it.type] || '') + '</span>' +
           '<div class="subj">' + escapeHtml(it.subject || '未命名科目') + '</div>' +
           (it.title ? '<div class="ttl">' + escapeHtml(it.title) + '</div>' : '') +
           (it.time ? '<div class="ttl">時間：' + it.time + '</div>' : '') +
-          (it.scope ? '<div class="scope">範圍：' + escapeHtml(it.scope) + '</div>' : '');
+          (it.scope ? '<div class="scope">' + (it.type === 'activity' ? '內容／地點：' : '範圍：') + escapeHtml(it.scope) + '</div>' : '') +
+          (it.notes ? '<div class="scope">備註：' + escapeHtml(it.notes) + '</div>' : '');
         row.addEventListener('click', () => { dayOverlay.classList.remove('show'); openEditModal(it); });
         dayList.appendChild(row);
       });
@@ -668,6 +713,9 @@
   const fNotes = document.getElementById('f-notes');
   const typeHwBtn = document.getElementById('type-hw');
   const typeExamBtn = document.getElementById('type-exam');
+  const typeActBtn = document.getElementById('type-activity');
+  const fTimeLabel = document.getElementById('f-time-label');
+  const fScopeLabel = document.getElementById('f-scope-label');
   const deleteRow = document.getElementById('delete-row');
   const fRepeatWrap = document.getElementById('f-repeat-wrap');
   const fRepeat = document.getElementById('f-repeat');
@@ -684,16 +732,24 @@
     currentType = t;
     typeHwBtn.classList.toggle('active', t === 'hw');
     typeExamBtn.classList.toggle('active', t === 'exam');
+    typeActBtn.classList.toggle('active', t === 'activity');
+    fTitleLabel.textContent = '標題';
     if (t === 'hw'){
-      fTitleLabel.textContent = '標題';
       fDateLabel.textContent = '繳交日期';
       fTimeWrap.style.display = 'none';
       fScopeWrap.style.display = 'block';
-    } else {
-      fTitleLabel.textContent = '標題';
+      fScopeLabel.textContent = '範圍';
+    } else if (t === 'exam'){
       fDateLabel.textContent = '考試日期';
+      fTimeLabel.textContent = '考試時間';
       fTimeWrap.style.display = 'block';
       fScopeWrap.style.display = 'none';
+    } else {
+      fDateLabel.textContent = '活動日期';
+      fTimeLabel.textContent = '活動時間';
+      fTimeWrap.style.display = 'block';
+      fScopeWrap.style.display = 'block';
+      fScopeLabel.textContent = '內容／地點';
     }
   }
 
@@ -716,6 +772,7 @@
   }
   typeHwBtn.addEventListener('click', () => setType('hw'));
   typeExamBtn.addEventListener('click', () => setType('exam'));
+  typeActBtn.addEventListener('click', () => setType('activity'));
 
   function openAddModal(presetDate){
     editingId = null;
@@ -755,14 +812,20 @@
 
   const saveBtn = document.getElementById('save-item');
   saveBtn.addEventListener('click', async () => {
-    if (!fSubject.value.trim()){ alert('請輸入科目'); return; }
+    if (!fSubject.value.trim()){ alert('請輸入科目或活動名稱'); return; }
     if (!fDate.value){ alert('請選擇日期'); return; }
+    // 先重新讀取最新雲端資料再套用修改，避免蓋掉別人剛新增的內容
+    saveBtn.disabled = true;
+    const originalLabel = saveBtn.textContent;
+    saveBtn.textContent = '儲存中…（Google 試算表反應較慢，請耐心等候）';
+    const fresh = await loadItems();
+    if (!fresh) { saveBtn.disabled = false; saveBtn.textContent = originalLabel; return; }
     const baseData = {
       type: currentType,
       subject: fSubject.value.trim(),
       title: fTitle.value.trim(),
-      time: currentType === 'exam' ? fTime.value : '',
-      scope: currentType === 'hw' ? fScope.value.trim() : '',
+      time: currentType !== 'hw' ? fTime.value : '',
+      scope: currentType !== 'exam' ? fScope.value.trim() : '',
       notes: fNotes.value.trim()
     };
 
@@ -780,9 +843,6 @@
       items.push(Object.assign({id: uid(), date: fDate.value}, baseData));
     }
 
-    saveBtn.disabled = true;
-    const originalLabel = saveBtn.textContent;
-    saveBtn.textContent = '儲存中…（Google 試算表反應較慢，請耐心等候）';
     await saveItems();
     saveBtn.disabled = false;
     saveBtn.textContent = originalLabel;
@@ -793,11 +853,13 @@
   document.getElementById('delete-item').addEventListener('click', async () => {
     if (!editingId) return;
     if (!confirm('確定要刪除此項目嗎？')) return;
-    items = items.filter(i => i.id !== editingId);
     const delBtn = document.getElementById('delete-item');
     delBtn.disabled = true;
     const originalLabel = delBtn.textContent;
     delBtn.textContent = '刪除中…（請耐心等候）';
+    const fresh = await loadItems();
+    if (!fresh) { delBtn.disabled = false; delBtn.textContent = originalLabel; return; }
+    items = items.filter(i => i.id !== editingId);
     await saveItems();
     delBtn.disabled = false;
     delBtn.textContent = originalLabel;
